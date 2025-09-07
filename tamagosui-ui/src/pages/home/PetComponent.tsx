@@ -83,7 +83,7 @@ export default function PetComponent({ pet }: PetDashboardProps) {
   const handleWardrobeClick = () => { soundEffects.clickSound.play(); setIsWardrobeOpen(true); };
 
   return (
-    <main className="flex justify-center min-h-screen w-full bg-white p-4 pt-20 overflow-hidden">
+    <main className="h-screen w-full bg-white overflow-hidden">
       <TooltipProvider>
         <DraggablePetCard
           pet={pet}
