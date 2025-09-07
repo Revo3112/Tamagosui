@@ -20,14 +20,24 @@ const E_PET_IS_ALREADY_ASLEEP: u64 = 109;
 const E_ACCESSORY_TYPE_ALREADY_EQUIPPED: u64 = 110;
 
 // === Constants ===
+// Level 1 images
 const PET_LEVEL_1_IMAGE_URL: vector<u8> =
-    b"https://tan-kind-lizard-741.mypinata.cloud/ipfs/bafkreidkhjpthergw2tcg6u5r344shgi2cdg5afmhgpf5bv34vqfrr7hni";
+    b"https://copper-far-firefly-220.mypinata.cloud/ipfs/bafkreidkhjpthergw2tcg6u5r344shgi2cdg5afmhgpf5bv34vqfrr7hni";
 const PET_LEVEL_1_IMAGE_WITH_GLASSES_URL: vector<u8> =
     b"https://tan-kind-lizard-741.mypinata.cloud/ipfs/bafkreibizappmcjaq5a5metl27yc46co4kxewigq6zu22vovwvn5qfsbiu";
 const PET_LEVEL_1_IMAGE_WITH_HAT_URL: vector<u8> =
     b"https://copper-far-firefly-220.mypinata.cloud/ipfs/bafybeigoonnjcuktxaq4y7punnuuahet6kivcuj3lgthjcxc4gijgqjzd4";
 const PET_LEVEL_1_IMAGE_WITH_GLASSES_AND_HAT_URL: vector<u8> =
     b"https://copper-far-firefly-220.mypinata.cloud/ipfs/bafybeicefgoq6smgi545b6rcn2lkmizmtipqrpfvheejigpejrshierxeq";
+
+// Level 2 images (hanya gambar standar)
+const PET_LEVEL_2_IMAGE_URL: vector<u8> =
+    b"https://tan-kind-lizard-741.mypinata.cloud/ipfs/bafkreia5tgsowzfu6mzjfcxagfpbkghfuho6y5ybetxh3wabwrc5ajmlpq";
+
+// Level 3 images (hanya gambar standar)
+const PET_LEVEL_3_IMAGE_URL: vector<u8> =
+    b"https://tan-kind-lizard-741.mypinata.cloud/ipfs/bafkreidnqerfwxuxkrdsztgflmg5jwuespdkrazl6qmk7ykfgmrfzvinoy";
+
 const PET_SLEEP_IMAGE_URL: vector<u8> =
     b"https://tan-kind-lizard-741.mypinata.cloud/ipfs/bafkreihwofl5stihtzjixfhrtznd7zqkclfhmlshgsg7cbszzjqqpvf7ae";
 const ACCESSORY_GLASSES_IMAGE_URL: vector<u8> =
@@ -350,7 +360,7 @@ public entry fun check_and_level_up(pet: &mut Pet) {
 
 public entry fun mint_accessory(accessory_type: String, ctx: &mut TxContext) {
     let accessory_type_bytes = accessory_type.bytes();
-    
+
     let (name, image_url) = if (accessory_type_bytes == ACCESSORY_TYPE_GLASSES) {
         (string::utf8(b"Cool Glasses"), string::utf8(ACCESSORY_GLASSES_IMAGE_URL))
     } else if (accessory_type_bytes == ACCESSORY_TYPE_HAT) {
@@ -372,7 +382,7 @@ public entry fun equip_accessory(pet: &mut Pet, accessory: PetAccessory) {
     assert!(!is_sleeping(pet), E_PET_IS_ASLEEP);
 
     let accessory_type_bytes = accessory.accessory_type.bytes();
-    
+
     let key = if (accessory_type_bytes == ACCESSORY_TYPE_GLASSES) {
         string::utf8(EQUIPPED_GLASSES_KEY)
     } else if (accessory_type_bytes == ACCESSORY_TYPE_HAT) {
@@ -395,7 +405,7 @@ public entry fun unequip_accessory(pet: &mut Pet, accessory_type: String, ctx: &
     assert!(!is_sleeping(pet), E_PET_IS_ASLEEP);
 
     let accessory_type_bytes = accessory_type.bytes();
-    
+
     let key = if (accessory_type_bytes == ACCESSORY_TYPE_GLASSES) {
         string::utf8(EQUIPPED_GLASSES_KEY)
     } else if (accessory_type_bytes == ACCESSORY_TYPE_HAT) {
@@ -429,19 +439,27 @@ fun emit_action(pet: &Pet, action: vector<u8>) {
 fun update_pet_image(pet: &mut Pet) {
     let glasses_key = string::utf8(EQUIPPED_GLASSES_KEY);
     let hat_key = string::utf8(EQUIPPED_HAT_KEY);
-    
+
     let has_glasses = dynamic_field::exists_<String>(&pet.id, glasses_key);
     let has_hat = dynamic_field::exists_<String>(&pet.id, hat_key);
 
-    // Semua level menggunakan gambar level 1
-    if (has_glasses && has_hat) {
-        pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_GLASSES_AND_HAT_URL);
-    } else if (has_glasses) {
-        pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_GLASSES_URL);
-    } else if (has_hat) {
-        pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_HAT_URL);
-    } else {
-        pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_URL);
+    // Update image based on level and equipped accessories
+    if (pet.game_data.level == 1) {
+        if (has_glasses && has_hat) {
+            pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_GLASSES_AND_HAT_URL);
+        } else if (has_glasses) {
+            pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_GLASSES_URL);
+        } else if (has_hat) {
+            pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_WITH_HAT_URL);
+        } else {
+            pet.image_url = string::utf8(PET_LEVEL_1_IMAGE_URL);
+        }
+    } else if (pet.game_data.level == 2) {
+        // Level 2 hanya menggunakan gambar standar (belum ada gambar dengan aksesori)
+        pet.image_url = string::utf8(PET_LEVEL_2_IMAGE_URL);
+    } else if (pet.game_data.level >= 3) {
+        // Level 3+ hanya menggunakan gambar standar (belum ada gambar dengan aksesori)
+        pet.image_url = string::utf8(PET_LEVEL_3_IMAGE_URL);
     };
 }
 

@@ -1,0 +1,187 @@
+// src/pages/home/components/DraggablePetCard.tsx
+
+import { motion, useMotionValue, animate, type PanInfo } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
+    HeartIcon, BatteryIcon, DrumstickIcon, PlayIcon, BedIcon,
+    BriefcaseIcon, ZapIcon, SparklesIcon, ShirtIcon, Loader2Icon,
+    CoinsIcon, StarIcon,
+} from "lucide-react";
+import { StatDisplay } from "./StatDisplay";
+import { ActionButton } from "./ActionButton";
+
+type DraggablePetCardProps = {
+    pet: any;
+    gameBalance: any;
+    displayStats: { energy: number; happiness: number; hunger: number };
+    isAnyActionPending: boolean; isFeeding: boolean; isPlaying: boolean;
+    isWorking: boolean; isWakingUp: boolean; isLevelingUp: boolean;
+    canFeed: boolean; canPlay: boolean; canWork: boolean; canLevelUp: boolean;
+    onFeed: () => void; onPlay: () => void; onWork: () => void;
+    onSleep: () => void; onWakeUp: () => void; onLevelUp: () => void;
+    onWardrobeClick: () => void;
+};
+
+export function DraggablePetCard({ pet, gameBalance, displayStats, ...props }: DraggablePetCardProps) {
+  // === KONSTANTA FISIKA PENDULUM ===
+  // Panjang tali disesuaikan agar lebih proporsional di tengah layar
+  const PENDULUM_LENGTH = 200; // Sebelumnya: 280
+  const VELOCITY_DAMPING = 0.012;
+
+  // === MOTION VALUES & DRAG HANDLERS (TIDAK BERUBAH) ===
+  const pendulumAngle = useMotionValue(0);
+  const isDragging = useMotionValue(false);
+
+  const handleDrag = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    isDragging.set(true);
+    const deltaX = info.offset.x;
+    const deltaY = info.offset.y;
+    const angleRad = Math.atan2(-deltaX, PENDULUM_LENGTH + deltaY);
+    const angleDeg = (angleRad * 180) / Math.PI;
+    const clampedAngle = Math.max(-45, Math.min(45, angleDeg));
+    pendulumAngle.set(clampedAngle);
+  };
+
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    isDragging.set(false);
+    const angularVelocity = -(info.velocity.x / PENDULUM_LENGTH) * VELOCITY_DAMPING;
+    animate(pendulumAngle, 0, {
+      type: "spring",
+      stiffness: 80,
+      damping: 12,
+      mass: 2.5,
+      velocity: angularVelocity,
+    });
+  };
+
+  const xpForNextLevel = pet.game_data.level * Number(gameBalance.exp_per_level);
+  const xpProgress = (pet.game_data.experience / xpForNextLevel) * 100;
+
+  return (
+    // Wadah ini tidak lagi w-full h-full, ia hanya sebagai container relatif untuk pivot
+    <div className="relative">
+      {/* === TITIK GANTUNG TETAP (PIVOT POINT) === */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+        {/* Mounting point & Hook visual (tidak berubah) */}
+        <div className="w-4 h-8 bg-gray-800 rounded-t-full shadow-lg"></div>
+        <div className="w-10 h-10 bg-gray-700 rounded-full border-4 border-gray-600 shadow-xl">
+          <div className="w-3 h-3 bg-gray-900 rounded-full mx-auto mt-1.5"></div>
+        </div>
+      </div>
+
+      {/* === PENDULUM ARM (BERROTASI DARI PIVOT) === */}
+      <motion.div
+        drag
+        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+        dragElastic={0}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        style={{
+          rotate: pendulumAngle,
+          transformOrigin: "50% 0%", // Pivot point tetap di atas tengah
+        }}
+        // Posisi disesuaikan dengan tinggi hook visual di atas
+        className="absolute top-12 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-20"
+        initial={{ opacity: 0, rotate: -5 }}
+        animate={{ opacity: 1, rotate: 0 }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
+      >
+        {/* === TALI/CHAIN VISUAL === */}
+        <div className="flex flex-col items-center">
+          <div
+            className="w-2 bg-gradient-to-b from-gray-600 to-gray-700 rounded-full shadow-inner"
+            style={{ height: PENDULUM_LENGTH }}
+          ></div>
+          <div className="w-6 h-4 bg-gray-700 rounded-full border-2 border-gray-600 -mt-1 mb-2"></div>
+        </div>
+
+        {/* === CARD DI UJUNG PENDULUM === */}
+        <div className="-mt-2">
+           {/* Lebar kartu diperkecil agar lebih rapi */}
+          <Card className="w-[520px] max-w-none rounded-xl bg-slate-800/90 backdrop-blur-sm border-2 border-slate-700 text-white overflow-visible font-sans shadow-2xl relative z-10 mx-auto">
+            <CardContent className="p-4"> {/* Padding disesuaikan */}
+              <div className="flex gap-4"> {/* Gap disesuaikan */}
+                {/* === KOLOM KIRI: AVATAR & NAMA === */}
+                <div className="w-1/3 flex flex-col items-center justify-center space-y-2">
+                  <motion.img
+                    src={pet.image_url} alt={pet.name}
+                    // Ukuran avatar diperkecil agar proporsional
+                    className={cn( "w-36 h-36 rounded-full border-4 object-cover transition-all duration-500", pet.isSleeping ? "border-blue-500/30 filter grayscale" : "border-[#4a4a6a]")}
+                    whileHover={{ scale: pet.isSleeping ? 1 : 1.05, rotate: pet.isSleeping ? 0 : 2 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  />
+                  <div className="text-center">
+                     {/* Ukuran font disesuaikan */}
+                    <h2 className="text-3xl font-bold font-pixel tracking-wider text-purple-300">{pet.name}</h2>
+                    <p className="text-base text-purple-400 font-semibold">Level {pet.game_data.level}</p>
+                  </div>
+                </div>
+
+                {/* === KOLOM KANAN: STATS & AKSI === */}
+                <div className="w-2/3 flex flex-col space-y-2.5">
+                  {/* Baris 1: Koin & XP (Tidak berubah) */}
+                  <div className="flex justify-between items-center">
+                    <Tooltip>
+                      <TooltipTrigger className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/30">
+                        <CoinsIcon className="w-5 h-5 text-yellow-400" />
+                        <span className="font-bold text-lg text-yellow-300">{pet.game_data.coins}</span>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Your Coins</p></TooltipContent>
+                    </Tooltip>
+                    <div className="w-full max-w-xs pl-4">
+                      <Tooltip>
+                        <TooltipTrigger className="w-full cursor-default">
+                          <div className="flex items-center gap-2">
+                            <StarIcon className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                            <Progress value={xpProgress} className="h-3 bg-slate-700 [&>div]:bg-purple-500" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent><p>XP: {pet.game_data.experience} / {xpForNextLevel}</p></TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  {/* Baris 2: Stat Bars (Tidak berubah) */}
+                  <div className="space-y-1.5 pt-1">
+                    <StatDisplay icon={<BatteryIcon className="text-green-400 w-6 h-6" />} label="Energy" value={displayStats.energy} color="bg-green-500" />
+                    <StatDisplay icon={<HeartIcon className="text-pink-400 w-6 h-6" />} label="Happiness" value={displayStats.happiness} color="bg-pink-500" />
+                    <StatDisplay icon={<DrumstickIcon className="text-orange-400 w-6 h-6" />} label="Hunger" value={displayStats.hunger} color="bg-orange-500" />
+                  </div>
+
+                  {/* Baris 3: Level Up Button (Tidak berubah) */}
+                  <Button onClick={props.onLevelUp} disabled={!props.canLevelUp || props.isAnyActionPending} className={cn("w-full text-md font-bold bg-[#f3b519] hover:bg-[#d69e11] text-black rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg py-2.5", props.canLevelUp && "animate-pulse shadow-yellow-400/50")}>
+                    {props.isLevelingUp ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <SparklesIcon className="mr-2 h-4 w-4" />}
+                    Level Up!
+                  </Button>
+
+                  {/* Baris 4 & 5: Action Buttons (Tidak berubah) */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <ActionButton onClick={props.onFeed} disabled={!props.canFeed || props.isAnyActionPending} isPending={props.isFeeding} label="Feed" icon={<DrumstickIcon />} />
+                    <ActionButton onClick={props.onPlay} disabled={!props.canPlay || props.isAnyActionPending} isPending={props.isPlaying} label="Play" icon={<PlayIcon />} />
+                    <ActionButton onClick={props.onWork} disabled={!props.canWork || props.isAnyActionPending} isPending={props.isWorking} label="Work" icon={<BriefcaseIcon />} className="col-span-2" />
+                    {pet.isSleeping ? (
+                      <Button onClick={props.onWakeUp} disabled={props.isWakingUp} className="w-full bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-bold py-2.5">
+                        {props.isWakingUp ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : <ZapIcon className="mr-2 h-4 w-4" />} Wake Up!
+                      </Button>
+                    ) : (
+                      <Button onClick={props.onSleep} disabled={props.isAnyActionPending} className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg font-bold py-2.5">
+                        <BedIcon className="mr-2 h-4 w-4" /> Sleep
+                      </Button>
+                    )}
+                    <Button onClick={props.onWardrobeClick} disabled={props.isAnyActionPending} variant="outline" className="w-full bg-transparent border-purple-400 hover:bg-purple-500/20 text-purple-300 hover:text-purple-300 rounded-lg font-bold py-2.5">
+                      <ShirtIcon className="mr-2 h-4 w-4" /> Wardrobe
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
